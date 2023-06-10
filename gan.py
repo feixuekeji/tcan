@@ -2,9 +2,8 @@ import argparse
 import os
 import numpy as np
 import math
+import pytorch_ssim
 
-import torchvision.transforms as transforms
-from torchaudio.models.wav2vec2.components import FeatureExtractor
 from torchvision.utils import save_image, make_grid
 
 from torch.utils.data import DataLoader
@@ -25,7 +24,7 @@ parser.add_argument("--batch_size", type=int, default=2, help="size of the batch
 parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--b2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
-parser.add_argument("--n_cpu", type=int, default=4, help="number of cpu threads to use during batch generation")
+parser.add_argument("--n_cpu", type=int, default=0, help="number of cpu threads to use during batch generation")
 parser.add_argument("--latent_dim", type=int, default=100, help="dimensionality of the latent space")
 parser.add_argument("--img_size", type=int, default=28, help="size of each image dimension")
 parser.add_argument("--channels", type=int, default=1, help="number of image channels")
@@ -53,7 +52,7 @@ discriminator = Discriminator(input_shape=img_shape)
 # Losses
 criterion_GAN = torch.nn.MSELoss()
 criterion_content = torch.nn.L1Loss()
-
+ssim_loss = pytorch_ssim.SSIM(window_size=11)
 if cuda:
     generator = generator.cuda()
     discriminator = discriminator.cuda()
@@ -67,7 +66,7 @@ optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt
 Tensor = torch.cuda.FloatTensor if cuda else torch.Tensor
 
 dataloader = DataLoader(
-    ImageDataset("/home/feifei/py/PyTorch-GAN/data/%s" % opt.dataset_name, hr_shape=hr_shape),
+    ImageDataset("data/%s" % opt.dataset_name, hr_shape=hr_shape),
     batch_size=opt.batch_size,
     shuffle=False,
     num_workers=opt.n_cpu,
@@ -84,10 +83,6 @@ for epoch in range(opt.n_epochs):
         imgs_lr = Variable(imgs["lr"].type(Tensor))
         real_imgs = Variable(imgs["hr"].type(Tensor))
 
-        # Adversarial ground truths
-        valid = Variable(Tensor(np.ones((imgs_lr.size(0), *discriminator.output_shape))), requires_grad=False)
-        fake = Variable(Tensor(np.zeros((imgs_lr.size(0), *discriminator.output_shape))), requires_grad=False)
-
         # ------------------
         #  Train Generators
         # ------------------
@@ -98,8 +93,7 @@ for epoch in range(opt.n_epochs):
         gen_imgs = generator(imgs_lr)
 
 
-        # Loss measures generator's ability to fool the discriminator
-        g_loss = adversarial_loss(discriminator(gen_imgs), valid)
+        g_loss = nn.MSELoss(gen_imgs,real_imgs) + ssim_loss(gen_imgs,real_imgs) + nn.BCELoss(discriminator(gen_imgs) - discriminator(real_imgs), 1)
 
         g_loss.backward()
         optimizer_G.step()
@@ -109,12 +103,7 @@ for epoch in range(opt.n_epochs):
         # ---------------------
 
         optimizer_D.zero_grad()
-
-        # Measure discriminator's ability to classify real from generated samples
-        real_loss = adversarial_loss(discriminator(real_imgs), valid)
-        fake_loss = adversarial_loss(discriminator(gen_imgs.detach()), fake)
-        d_loss = (real_loss + fake_loss) / 2
-
+        d_loss = 0.5 * (nn.BCELoss(discriminator(gen_imgs) - discriminator(real_imgs), 0) + nn.BCELoss(discriminator(real_imgs) - discriminator(gen_imgs), 1))
         d_loss.backward()
         optimizer_D.step()
 
