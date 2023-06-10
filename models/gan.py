@@ -50,8 +50,8 @@ class Discriminator(nn.Module):
             layers.extend(discriminator_block(in_filters, out_filters))
             in_filters = out_filters
 
-        layers.append(nn.Linear(512, 256))
-        layers.append(nn.Linear(512, 64))
+        layers.append(nn.Linear(2, 256))
+        layers.append(nn.Linear(256, 64))
         layers.append(nn.Linear(64, 1))
 
         self.model = nn.Sequential(*layers)
