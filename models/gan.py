@@ -10,7 +10,7 @@ from tcan.models.unet import UNet
 class Generator(nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
-        self.conv1 = nn.Conv2d(3, 3, kernel_size=3, padding=0)
+        self.conv1 = nn.Conv2d(1, 1, kernel_size=3, padding=0)
         self.relu = nn.LeakyReLU(0.2, inplace=True)
         self.unet = UNet(3,3)
         self.dfcan = DFCAN(3)
@@ -46,13 +46,14 @@ class Discriminator(nn.Module):
 
         layers = []
         in_filters = in_channels
-        for i, out_filters in enumerate([64, 128, 256, 512]):
+        for i, out_filters in enumerate([512, 256, 128, 64, 32]):
             layers.extend(discriminator_block(in_filters, out_filters))
             in_filters = out_filters
 
-        layers.append(nn.Linear(2, 256))
-        layers.append(nn.Linear(256, 64))
-        layers.append(nn.Linear(64, 1))
+        layers.append(nn.Flatten())
+        layers.append(nn.Linear(2048, 1024))
+        layers.append(nn.Linear(1024, 128))
+        layers.append(nn.Linear(128, 1))
 
         self.model = nn.Sequential(*layers)
 

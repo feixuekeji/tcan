@@ -1,45 +1,50 @@
-import glob
-import random
-import os
+from torch.utils.data import Dataset, DataLoader
 import numpy as np
-
-import torch
-from torch.utils.data import Dataset
 from PIL import Image
-import torchvision.transforms as transforms
-
-# Normalization parameters for pre-trained PyTorch models
-mean = np.array([0.485, 0.456, 0.406])
-std = np.array([0.229, 0.224, 0.225])
-
+import os
+from torchvision import transforms
+from torch.utils.tensorboard import SummaryWriter
+from torchvision.utils import make_grid
+import glob
 
 class ImageDataset(Dataset):
-    def __init__(self, root, hr_shape):
-        hr_height, hr_width = hr_shape
-        # Transforms for low resolution images and high resolution images
-        self.lr_transform = transforms.Compose(
-            [
-                transforms.Resize((hr_height // 4, hr_height // 4), Image.BICUBIC),
-                transforms.ToTensor(),
-                transforms.Normalize(mean, std),
-            ]
-        )
-        self.hr_transform = transforms.Compose(
-            [
-                transforms.Resize((hr_height, hr_height), Image.BICUBIC),
-                transforms.ToTensor(),
-                transforms.Normalize(mean, std),
-            ]
-        )
 
-        self.files = sorted(glob.glob(root + "/*.*"))
+    def __init__(self, root, transform):
+        self.root = root
+        self.transform = transform
+        self.transform2 = transforms.Compose([transforms.ToTensor()])
+        self.lr_imgs = sorted(glob.glob(root + "/*lr.*"))
+        self.hr_imgs = sorted(glob.glob(root + "/*hr.*"))
 
-    def __getitem__(self, index):
-        img = Image.open(self.files[index % len(self.files)])
-        img_lr = self.lr_transform(img)
-        img_hr = self.hr_transform(img)
+    def __getitem__(self, idx):
+        lr_img = self.lr_imgs[idx]
+        lr_img = Image.open(lr_img)
+        lr_img = self.transform(lr_img)
 
-        return {"lr": img_lr, "hr": img_hr}
+        hr_img = self.hr_imgs[idx]
+        hr_img = Image.open(hr_img)
+
+        hr_img = self.transform2(hr_img)
+        sample = {'lr': lr_img, 'hr': hr_img}
+        return sample
 
     def __len__(self):
-        return len(self.files)
+        assert len(self.lr_imgs) == len(self.hr_imgs)
+        return len(self.lr_imgs)
+
+if __name__ == '__main__':
+    transform = transforms.Compose([transforms.Resize(256), transforms.ToTensor()])
+    train_dataset = ImageDataset("data/deep", transform)
+
+    dataloader = DataLoader(train_dataset, batch_size=2, num_workers=4)
+
+
+    for i, j in enumerate(dataloader):
+
+        # imgs, labels = j
+        print(i, j['lr'].shape)
+        # writer.add_image("train_data_b2", make_grid(j['img']), i)
+
+
+
+

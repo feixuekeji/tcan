@@ -10,11 +10,11 @@ from torch.utils.data import DataLoader
 from torchvision import datasets
 from torch.autograd import Variable
 
-import torch.nn as nn
-import torch.nn.functional as F
-import torch
+
 from models.gan import *
 from tcan.datasets import ImageDataset
+from torchvision import transforms
+
 
 os.makedirs("images", exist_ok=True)
 
@@ -31,7 +31,7 @@ parser.add_argument("--channels", type=int, default=3, help="number of image cha
 parser.add_argument("--sample_interval", type=int, default=400, help="interval betwen image samples")
 parser.add_argument("--hr_height", type=int, default=256, help="high res. image height")
 parser.add_argument("--hr_width", type=int, default=256, help="high res. image width")
-parser.add_argument("--dataset_name", type=str, default="img_align_celeba", help="name of the dataset")
+parser.add_argument("--dataset_name", type=str, default="deep", help="name of the dataset")
 parser.add_argument("--checkpoint_interval", type=int, default=-1, help="interval between model checkpoints")
 
 opt = parser.parse_args()
@@ -51,24 +51,26 @@ generator = Generator()
 discriminator = Discriminator(input_shape=img_shape)
 # Losses
 mse_loss = torch.nn.MSELoss()
+bce_loss = torch.nn.BCEWithLogitsLoss()
 ssim_loss = pytorch_ssim.SSIM(window_size=11)
 if cuda:
     generator = generator.cuda()
     discriminator = discriminator.cuda()
+    bce_loss = bce_loss.cuda()
+    mse_loss = mse_loss.cuda()
+    ssim_loss = ssim_loss.cuda()
 
 # Optimizers
 optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 
 Tensor = torch.cuda.FloatTensor if cuda else torch.Tensor
-
 dataloader = DataLoader(
-    ImageDataset("/home/feifei/py/PyTorch-GAN/data/%s" % opt.dataset_name, hr_shape=hr_shape),
+    ImageDataset("data/%s" % opt.dataset_name, transforms.Compose([transforms.Resize(256), transforms.ToTensor()])),
     batch_size=opt.batch_size,
     shuffle=False,
     num_workers=opt.n_cpu,
-    drop_last=True
-)
+    )
 
 # ----------
 #  Training
@@ -77,9 +79,9 @@ dataloader = DataLoader(
 for epoch in range(opt.n_epochs):
     for i, imgs in enumerate(dataloader):
 
-        # Configure model input
-        imgs_lr = Variable(imgs["lr"].type(Tensor))
-        real_imgs = Variable(imgs["hr"].type(Tensor))
+
+        imgs_lr = imgs["lr"]
+        real_imgs = imgs["hr"]
 
         # ------------------
         #  Train Generators
@@ -87,12 +89,21 @@ for epoch in range(opt.n_epochs):
 
         optimizer_G.zero_grad()
 
-        gen_imgs = generator(imgs_lr)
+        gen_imgs = generator(imgs_lr.cuda())
+
+        transform = transforms.Compose([transforms.Resize((256, 256))])
+
+        gen_imgs = transform(gen_imgs)
 
         d_hr_imgs = discriminator(gen_imgs)
-        d_real_imgs = discriminator(gen_imgs)
+        d_real_imgs = discriminator(real_imgs)
+
+        target0 = torch.zeros(2, 1).to('cuda')  # 示例标签值为1
+        target1 = torch.ones(2, 1).to('cuda')  # 示例标签值为1
+
         g_loss = mse_loss(gen_imgs,real_imgs)
-        # g_loss = nn.MSELoss(gen_imgs,real_imgs) + ssim_loss(gen_imgs,real_imgs) + nn.BCELoss(d_hr_imgs - d_real_imgs, 1)
+        g_loss += ssim_loss(gen_imgs,real_imgs)
+        g_loss += bce_loss(d_hr_imgs - d_real_imgs, target1)
 
         g_loss.backward()
         optimizer_G.step()
@@ -102,8 +113,10 @@ for epoch in range(opt.n_epochs):
         # ---------------------
 
         optimizer_D.zero_grad()
-        d_loss = 0.5 * (nn.BCELoss(discriminator(gen_imgs) - discriminator(real_imgs), 0) + nn.BCELoss(discriminator(real_imgs) - discriminator(gen_imgs), 1))
+        d_loss = 0.5 * (bce_loss(d_hr_imgs.detach() - d_real_imgs.detach(), target0) + bce_loss(d_real_imgs.detach() - d_hr_imgs.detach(), target1))
+        d_loss.requires_grad_(True)
         d_loss.backward()
+
         optimizer_D.step()
 
         print(
