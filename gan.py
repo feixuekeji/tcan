@@ -19,15 +19,15 @@ from torchvision import transforms
 os.makedirs("images", exist_ok=True)
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--n_epochs", type=int, default=100, help="number of epochs of training")
-parser.add_argument("--batch_size", type=int, default=2, help="size of the batches")
+parser.add_argument("--n_epochs", type=int, default=10, help="number of epochs of training")
+parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--b2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--n_cpu", type=int, default=4, help="number of cpu threads to use during batch generation")
 parser.add_argument("--latent_dim", type=int, default=100, help="dimensionality of the latent space")
 parser.add_argument("--img_size", type=int, default=28, help="size of each image dimension")
-parser.add_argument("--channels", type=int, default=3, help="number of image channels")
+parser.add_argument("--channels", type=int, default=1, help="number of image channels")
 parser.add_argument("--sample_interval", type=int, default=400, help="interval betwen image samples")
 parser.add_argument("--hr_height", type=int, default=256, help="high res. image height")
 parser.add_argument("--hr_width", type=int, default=256, help="high res. image width")
@@ -66,7 +66,7 @@ optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt
 
 Tensor = torch.cuda.FloatTensor if cuda else torch.Tensor
 dataloader = DataLoader(
-    ImageDataset("data/%s" % opt.dataset_name, transforms.Compose([transforms.Resize(256), transforms.ToTensor()])),
+    ImageDataset("data/%s" % opt.dataset_name, transforms.Compose([transforms.Resize(128), transforms.ToTensor()])),
     batch_size=opt.batch_size,
     shuffle=False,
     num_workers=opt.n_cpu,
@@ -80,8 +80,8 @@ for epoch in range(opt.n_epochs):
     for i, imgs in enumerate(dataloader):
 
 
-        imgs_lr = imgs["lr"]
-        real_imgs = imgs["hr"]
+        imgs_lr = imgs["lr"].cuda()
+        real_imgs = imgs["hr"].cuda()
 
         # ------------------
         #  Train Generators
@@ -89,7 +89,7 @@ for epoch in range(opt.n_epochs):
 
         optimizer_G.zero_grad()
 
-        gen_imgs = generator(imgs_lr.cuda())
+        gen_imgs = generator(imgs_lr)
 
         transform = transforms.Compose([transforms.Resize((256, 256))])
 

@@ -12,8 +12,8 @@ class Generator(nn.Module):
         super(Generator, self).__init__()
         self.conv1 = nn.Conv2d(1, 1, kernel_size=3, padding=0)
         self.relu = nn.LeakyReLU(0.2, inplace=True)
-        self.unet = UNet(3,3)
-        self.dfcan = DFCAN(3)
+        self.unet = UNet(1,3)
+        self.dfcan = DFCAN(1)
         self.conv2 = nn.Conv2d(3, 3, kernel_size=3, padding=0)
 
     def forward(self, img):
