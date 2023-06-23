@@ -78,7 +78,7 @@ class DFCAN(nn.Module):
         #####temp
         self.temp = nn.Sequential(nn.Conv2d(64 * (scale ** 2), 128, kernel_size=5, stride=1, padding=1),
                                   nn.Conv2d(128, 3, kernel_size=5, stride=1, padding=1),
-                                  nn.Conv2d(3, 3, kernel_size=13, stride=1, padding=1),
+                                  nn.Conv2d(3, 1, kernel_size=13, stride=1, padding=1),
                                   )
 
     def forward(self, x):

@@ -12,7 +12,7 @@ class ImageDataset(Dataset):
     def __init__(self, root, transform):
         self.root = root
         self.transform = transform
-        self.transform2 = transforms.Compose([transforms.ToTensor()])
+        self.transform2 = transforms.Compose([transforms.Resize(256), transforms.ToTensor()])
         self.lr_imgs = sorted(glob.glob(root + "/*lr.*"))
         self.hr_imgs = sorted(glob.glob(root + "/*hr.*"))
 

@@ -19,8 +19,8 @@ from torchvision import transforms
 os.makedirs("images", exist_ok=True)
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--n_epochs", type=int, default=10, help="number of epochs of training")
-parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
+parser.add_argument("--n_epochs", type=int, default=200, help="number of epochs of training")
+parser.add_argument("--batch_size", type=int, default=2, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--b2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
@@ -28,7 +28,7 @@ parser.add_argument("--n_cpu", type=int, default=4, help="number of cpu threads 
 parser.add_argument("--latent_dim", type=int, default=100, help="dimensionality of the latent space")
 parser.add_argument("--img_size", type=int, default=28, help="size of each image dimension")
 parser.add_argument("--channels", type=int, default=1, help="number of image channels")
-parser.add_argument("--sample_interval", type=int, default=400, help="interval betwen image samples")
+parser.add_argument("--sample_interval", type=int, default=1, help="interval betwen image samples")
 parser.add_argument("--hr_height", type=int, default=256, help="high res. image height")
 parser.add_argument("--hr_width", type=int, default=256, help="high res. image width")
 parser.add_argument("--dataset_name", type=str, default="deep", help="name of the dataset")
@@ -90,20 +90,21 @@ for epoch in range(opt.n_epochs):
         optimizer_G.zero_grad()
 
         gen_imgs = generator(imgs_lr)
+        print(imgs_lr.size())
 
         transform = transforms.Compose([transforms.Resize((256, 256))])
 
         gen_imgs = transform(gen_imgs)
-
         d_hr_imgs = discriminator(gen_imgs)
         d_real_imgs = discriminator(real_imgs)
 
-        target0 = torch.zeros(2, 1).to('cuda')  # 示例标签值为1
-        target1 = torch.ones(2, 1).to('cuda')  # 示例标签值为1
+        valid = Variable(Tensor(gen_imgs.size(0), 1).fill_(1.0), requires_grad=False)
+        fake = Variable(Tensor(gen_imgs.size(0), 1).fill_(0.0), requires_grad=False)
+
 
         g_loss = mse_loss(gen_imgs,real_imgs)
         g_loss += ssim_loss(gen_imgs,real_imgs)
-        g_loss += bce_loss(d_hr_imgs - d_real_imgs, target1)
+        g_loss += bce_loss(d_hr_imgs - d_real_imgs, valid)
 
         g_loss.backward()
         optimizer_G.step()
@@ -113,7 +114,7 @@ for epoch in range(opt.n_epochs):
         # ---------------------
 
         optimizer_D.zero_grad()
-        d_loss = 0.5 * (bce_loss(d_hr_imgs.detach() - d_real_imgs.detach(), target0) + bce_loss(d_real_imgs.detach() - d_hr_imgs.detach(), target1))
+        d_loss = 0.5 * (bce_loss(d_hr_imgs.detach() - d_real_imgs.detach(), fake) + bce_loss(d_real_imgs.detach() - d_hr_imgs.detach(), valid))
         d_loss.requires_grad_(True)
         d_loss.backward()
 
@@ -126,4 +127,7 @@ for epoch in range(opt.n_epochs):
 
         batches_done = epoch * len(dataloader) + i
         if batches_done % opt.sample_interval == 0:
-            save_image(gen_imgs.data[:25], "images/%d.png" % batches_done, nrow=5, normalize=True)
+            # save_image(gen_imgs.data, "images/%d.png" % batches_done, nrow=5, normalize=True)
+            # img_grid = torch.cat((imgs_lr, gen_imgs), -1)
+            save_image(imgs_lr, "images/%dl.png" % batches_done, normalize=False)
+            save_image(gen_imgs, "images/%dh.png" % batches_done, nrow=5, normalize=True)
