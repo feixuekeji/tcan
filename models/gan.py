@@ -3,8 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 
-from tcan.models.dfcan import DFCAN
-from tcan.models.unet import UNet
+from .dfcan import DFCAN
+from .unet import *
 
 
 class Generator(nn.Module):
@@ -51,7 +51,8 @@ class Discriminator(nn.Module):
             in_filters = out_filters
 
         layers.append(nn.Flatten())
-        layers.append(nn.Linear(32768, 1024))
+        layers.append(nn.Linear(8192, 1024))
+        # layers.append(nn.Linear(32768, 1024))
         layers.append(nn.Linear(1024, 128))
         layers.append(nn.Linear(128, 1))
 

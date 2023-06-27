@@ -12,7 +12,6 @@ class ImageDataset(Dataset):
     def __init__(self, root, transform):
         self.root = root
         self.transform = transform
-        self.transform2 = transforms.Compose([transforms.Resize(256), transforms.ToTensor()])
         self.lr_imgs = sorted(glob.glob(root + "/*lr.*"))
         self.hr_imgs = sorted(glob.glob(root + "/*hr.*"))
 
@@ -24,7 +23,7 @@ class ImageDataset(Dataset):
         hr_img = self.hr_imgs[idx]
         hr_img = Image.open(hr_img)
 
-        hr_img = self.transform2(hr_img)
+        hr_img = self.transform(hr_img)
         sample = {'lr': lr_img, 'hr': hr_img}
         return sample
 

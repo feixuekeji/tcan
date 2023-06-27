@@ -4,5 +4,7 @@
 .DS_Store
 
 data/*/
-images/
+
+images/*
+img/*
 __pycache__

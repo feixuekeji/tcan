@@ -20,18 +20,19 @@ os.makedirs("images", exist_ok=True)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--n_epochs", type=int, default=200, help="number of epochs of training")
-parser.add_argument("--batch_size", type=int, default=2, help="size of the batches")
-parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
+parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
+parser.add_argument("--lr", type=float, default=0.0001, help="adam: learning rate")
+parser.add_argument("--lr2", type=float, default=0.00005, help="adam: discriminator learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--b2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--n_cpu", type=int, default=4, help="number of cpu threads to use during batch generation")
 parser.add_argument("--latent_dim", type=int, default=100, help="dimensionality of the latent space")
 parser.add_argument("--img_size", type=int, default=28, help="size of each image dimension")
 parser.add_argument("--channels", type=int, default=1, help="number of image channels")
-parser.add_argument("--sample_interval", type=int, default=1, help="interval betwen image samples")
+parser.add_argument("--sample_interval", type=int, default=100, help="interval betwen image samples")
 parser.add_argument("--hr_height", type=int, default=256, help="high res. image height")
 parser.add_argument("--hr_width", type=int, default=256, help="high res. image width")
-parser.add_argument("--dataset_name", type=str, default="deep", help="name of the dataset")
+parser.add_argument("--dataset_name", type=str, default="deep1", help="name of the dataset")
 parser.add_argument("--checkpoint_interval", type=int, default=-1, help="interval between model checkpoints")
 
 opt = parser.parse_args()
@@ -62,7 +63,7 @@ if cuda:
 
 # Optimizers
 optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
-optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
+optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr2, betas=(opt.b1, opt.b2))
 
 Tensor = torch.cuda.FloatTensor if cuda else torch.Tensor
 dataloader = DataLoader(
@@ -90,9 +91,9 @@ for epoch in range(opt.n_epochs):
         optimizer_G.zero_grad()
 
         gen_imgs = generator(imgs_lr)
-        print(imgs_lr.size())
+        # print(gen_imgs.size())
 
-        transform = transforms.Compose([transforms.Resize((256, 256))])
+        transform = transforms.Compose([transforms.Resize(128)])
 
         gen_imgs = transform(gen_imgs)
         d_hr_imgs = discriminator(gen_imgs)
