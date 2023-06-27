@@ -5,6 +5,6 @@
 
 data/*/
 
-/images/
+images
 __pycache__
-/img/
+img
